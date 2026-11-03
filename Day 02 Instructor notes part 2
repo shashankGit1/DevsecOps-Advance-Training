@@ -1,0 +1,114 @@
+docker run -it --rm --name vuln_app -p 80:80 -v "$PWD":/var/www/html php:7.4-apache bash
+
+
+sudo apt update
+sudo apt install libapache2-mod-security2 -y
+
+sudo nano /etc/apache2/mods-enabled/security2.conf
+
+Inside this file, you will see how Apache loads the configuration and rules. Use a # to comment out the IncludeOptional lines like this:
+<IfModule security2_module>
+        # Default Debian modsecurity settings
+        SecDataDir /var/cache/modsecurity
+
+        # COMMENTED OUT: Stops Apache from loading the recommended base config
+        # IncludeOptional /etc/modsecurity/*.conf
+
+        # COMMENTED OUT: Stops Apache from loading the concurrent OWASP Core Rule Set
+        # IncludeOptional /usr/share/modsecurity-crs/*.load
+</IfModule>
+
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+sudo nano /etc/apache2/mods-enabled/security2.conf
+Make sure the file looks exactly like this. Notice that we uncomment the *.conf line so your custom rules will load, but we leave the OWASP Core Rule Set (*.load) commented out:
+<IfModule security2_module>
+        # Default Debian modsecurity settings
+        SecDataDir /var/cache/modsecurity
+
+        # ENABLED: This allows Apache to read your custom rules folder
+        IncludeOptional /etc/modsecurity/*.conf
+
+        # REMAIN COMMENTED OUT: Keeps default OWASP rules disabled
+        # IncludeOptional /usr/share/modsecurity-crs/*.load
+</IfModule>
+sudo cp /etc/modsecurity/modsecurity.conf-recommended /etc/modsecurity/modsecurity.conf
+sudo nano /etc/modsecurity/modsecurity.conf
+SecRuleEngine On
+
+sudo nano /etc/modsecurity/custom_rules.conf
+
+
+SecRule REQUEST_URI|QUERY_STRING|REQUEST_BODY \
+  "@contains ../../../etc/passwd" \
+  "id:100001,phase:2,deny,status:403,log,msg:'Exact traversal string blocked',t:none"
+sudo apache2ctl configtest
+sudo systemctl restart apache2
+
+
+
+
+
+
+
+
+
+
+
+
+apt update
+apt install curl git wget g++ make cmake -y
+wget https://github.com/baidu/openrasp/releases/download/v1.3.7/rasp-php-linux.tar.bz2
+tar -xjf rasp-php-linux.tar.bz2
+cd rasp-php-*/
+php install.php -d /opt/rasp
+service apache2 restart
+
+
+
+
+chmod 777 -R /opt/rasp
+php -i| grep -i rasp
+echo -e "
+[openrasp]
+extension=openrasp.so
+openrasp.root_dir=/opt/rasp
+openrasp.enforcement_mode=block
+" | tee /etc/php/7.3/cli/conf.d/99-openrasp.ini
+
+service apache2 restart
+
+
+
+
+
+
+
+
+
+
+
+
+‑‑
+
+vim /opt/rasp/plugins/official.js
+
+Find:
+var algorithmConfig = {
+    meta: {
+        all_log: true,
+        is_dev: false,
+        schema_version: 1
+    },
+
+Change:
+all_log: true,
+
+
+to:
+all_log: false,
+
+
+When all_log is enabled, detection actions are converted to logging rather than blocking. Disabling it enables the plugin's configured blocking decisions. 
+
